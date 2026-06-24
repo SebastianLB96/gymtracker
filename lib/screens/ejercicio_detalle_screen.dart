@@ -1,15 +1,8 @@
 // ============================================================
 // ejercicio_detalle_screen.dart - GymTracker
-// Pantalla más completa de la aplicación. Muestra toda la
-// información de un ejercicio específico del gimnasio:
-// - Header con imagen de la máquina y grupo muscular
-// - Estadísticas: récord personal, último peso y progreso total
-// - Formulario para registrar la sesión de entrenamiento actual
-//   con peso, series, repeticiones y nota opcional
-// - Gráfica de línea con la evolución del peso a lo largo
-//   del tiempo para visualizar la sobrecarga progresiva
-// - Historial completo de todas las sesiones registradas
-//   con indicador visual de si el peso subió o se mantuvo
+// Pantalla de detalle mejorada visualmente con header
+// con gradiente, tarjetas de stats mejoradas, formulario
+// con mejor UX y gráfica e historial más pulidos.
 // ============================================================
 
 import 'package:flutter/material.dart';
@@ -22,7 +15,6 @@ import '../utils/app_theme.dart';
 import '../widgets/ejercicio_image.dart';
 import 'ejercicio_form_screen.dart';
 
-// Pantalla de detalle de un ejercicio en GymTracker
 class EjercicioDetalleScreen extends StatefulWidget {
   final Ejercicio ejercicio;
 
@@ -34,9 +26,6 @@ class EjercicioDetalleScreen extends StatefulWidget {
 }
 
 class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
-
-  // Datos actualizados del ejercicio incluyendo foto
-  // Se recarga después de editar para mostrar cambios
   late Ejercicio _ejercicio;
   List<Registro> _registros = [];
   final _pesoCtrl = TextEditingController();
@@ -45,7 +34,6 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
   final _notaCtrl = TextEditingController();
   bool _guardando = false;
 
-  // Carga el historial del ejercicio al abrir la pantalla
   @override
   void initState() {
     super.initState();
@@ -53,16 +41,9 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
     _cargar();
   }
 
-  // Carga el historial completo de sesiones del ejercicio
-  // desde SQLite y pre-llena los campos del formulario
-  // con los datos de la última sesión como referencia
-  // para que el usuario sepa desde dónde continuar su progreso
   Future<void> _cargar() async {
     final registros = await DatabaseHelper.instance
         .getRegistrosByEjercicio(_ejercicio.id!);
-
-    // Recarga el ejercicio para mostrar foto actualizada
-    // si el usuario la cambió desde la pantalla de edición
     final ej = await DatabaseHelper.instance.getEjercicio(_ejercicio.id!);
     setState(() {
       _registros = registros;
@@ -71,19 +52,15 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
 
     if (_registros.isNotEmpty && _pesoCtrl.text.isEmpty) {
       final ultimo = _registros.last;
-      _pesoCtrl.text = ultimo.peso
-          .toStringAsFixed(ultimo.peso % 1 == 0 ? 0 : 1);
+      _pesoCtrl.text =
+          ultimo.peso.toStringAsFixed(ultimo.peso % 1 == 0 ? 0 : 1);
       _seriesCtrl.text = ultimo.series.toString();
       _repsCtrl.text = ultimo.reps.toString();
     }
   }
 
-  // Guarda la nueva sesión de entrenamiento en SQLite
-  // Verifica si el peso supera el récord personal anterior
-  // y muestra notificación especial si es un nuevo récord
   Future<void> _guardar() async {
-    final peso =
-        double.tryParse(_pesoCtrl.text.replaceAll(',', '.'));
+    final peso = double.tryParse(_pesoCtrl.text.replaceAll(',', '.'));
     final series = int.tryParse(_seriesCtrl.text);
     final reps = int.tryParse(_repsCtrl.text);
 
@@ -101,7 +78,6 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
         await DatabaseHelper.instance.getRecordPeso(_ejercicio.id!);
     final esRecord = record == null || peso > record;
 
-    // Guarda la nueva sesión en la base de datos SQLite
     await DatabaseHelper.instance.insertRegistro(Registro(
       ejercicioId: _ejercicio.id!,
       peso: peso,
@@ -112,20 +88,14 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
     ));
 
     _notaCtrl.clear();
-
-    // Recarga el historial para mostrar la nueva sesión
     await _cargar();
     setState(() => _guardando = false);
 
     if (mounted) {
-
-      // Notificación especial verde si es nuevo récord personal
-      // Motiva al usuario a seguir superando sus marcas
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
             esRecord ? '🏆 ¡Nuevo récord! $peso kg' : 'Registro guardado'),
-        backgroundColor:
-            esRecord ? AppTheme.success : AppTheme.primary,
+        backgroundColor: esRecord ? AppTheme.success : AppTheme.primary,
       ));
     }
   }
@@ -143,80 +113,17 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.surface,
-      appBar: AppBar(
-        title: Text(_ejercicio.nombre),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () async {
-              await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => EjercicioFormScreen(
-                          ejercicio: _ejercicio)));
-              _cargar();
-            },
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
-        children: [
-          _buildHeader(),
-          if (_registros.isNotEmpty) _buildStats(),
-          _buildFormRegistro(),
-          if (_registros.length >= 2) _buildGrafica(),
-          _buildHistorial(),
-        ],
-      ),
-    );
-  }
-
-  // Construye el encabezado con la foto de la máquina,
-  // nombre, grupo muscular y total de sesiones registradas
-  Widget _buildHeader() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          EjercicioImage(
-              ejercicio: _ejercicio,
-              size: 72,
-              borderRadius: BorderRadius.circular(12)),
-          const SizedBox(width: 14),
-          Expanded(
+      body: CustomScrollView(
+        slivers: [
+          _buildSliverAppBar(),
+          SliverToBoxAdapter(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_ejercicio.nombre,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.textPrimary)),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.grupoBgColor(_ejercicio.grupo),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _ejercicio.grupo,
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.grupoColor(_ejercicio.grupo),
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-                if (_registros.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text('${_registros.length} sesiones',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary)),
-                ],
+                if (_registros.isNotEmpty) _buildStats(),
+                _buildFormRegistro(),
+                if (_registros.length >= 2) _buildGrafica(),
+                _buildHistorial(),
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -225,129 +132,280 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
     );
   }
 
-  // Construye las tarjetas de estadísticas del ejercicio:
-  // - Récord personal: el mayor peso levantado históricamente
-  // - Último peso: referencia para la sesión actual
-  // - Progreso total: diferencia entre primera y última sesió
+  // ── SLIVER APP BAR CON HEADER VISUAL ─────────────────────
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 180,
+      pinned: true,
+      toolbarHeight: 48,
+      backgroundColor: AppTheme.primary,
+      foregroundColor: Colors.white,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, color: Colors.white),
+          onPressed: () async {
+            await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        EjercicioFormScreen(ejercicio: _ejercicio)));
+            _cargar();
+          },
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppTheme.primaryDark, AppTheme.primary],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+              child: Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: EjercicioImage(
+                      ejercicio: _ejercicio,
+                      size: 80,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _ejercicio.nombre,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _ejercicio.grupo,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        if (_registros.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            '${_registros.length} sesiones registradas',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.8)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── ESTADÍSTICAS ──────────────────────────────────────────
   Widget _buildStats() {
-    final maxPeso = _registros
-        .map((r) => r.peso)
-        .reduce((a, b) => a > b ? a : b);
+    final maxPeso =
+        _registros.map((r) => r.peso).reduce((a, b) => a > b ? a : b);
     final ultimo = _registros.last;
     final ganancia = ultimo.peso - _registros.first.peso;
 
-    String fmt(double v) =>
-        v.toStringAsFixed(v % 1 == 0 ? 0 : 1);
+    String fmt(double v) => v.toStringAsFixed(v % 1 == 0 ? 0 : 1);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
         children: [
           _statCard('Récord', '${fmt(maxPeso)} kg',
-              Icons.emoji_events_outlined),
-          const SizedBox(width: 10),
+              Icons.emoji_events_outlined, const Color(0xFFD4A017),
+              const Color(0xFFFFF8E7)),
+          const SizedBox(width: 8),
           _statCard('Último', '${fmt(ultimo.peso)} kg',
-              Icons.fitness_center_outlined),
-          const SizedBox(width: 10),
+              Icons.fitness_center_outlined, AppTheme.primary,
+              AppTheme.primaryLight),
+          const SizedBox(width: 8),
           _statCard(
-              'Progreso',
-              '${ganancia >= 0 ? '+' : ''}${ganancia.toStringAsFixed(1)} kg',
-              Icons.trending_up,
-              color: ganancia > 0 ? AppTheme.success : AppTheme.textSecondary),
+            'Progreso',
+            '${ganancia >= 0 ? '+' : ''}${ganancia.toStringAsFixed(1)} kg',
+            ganancia > 0 ? Icons.trending_up : Icons.trending_flat,
+            ganancia > 0 ? AppTheme.success : AppTheme.textSecondary,
+            ganancia > 0
+                ? AppTheme.successLight
+                : const Color(0xFFF1EFE8),
+          ),
         ],
       ),
     );
   }
 
-  // Construye una tarjeta individual de estadística
-  /// con ícono, valor numérico y etiqueta descriptiva
   Widget _statCard(String label, String value, IconData icon,
-      {Color? color}) {
+      Color color, Color bgColor) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border:
-              Border.all(color: const Color(0x22000000), width: 0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x18000000), width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon,
-                size: 16, color: color ?? AppTheme.primary),
-            const SizedBox(height: 6),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: color ?? AppTheme.textPrimary)),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 10, color: AppTheme.textSecondary)),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 16, color: color),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                  fontSize: 10, color: AppTheme.textSecondary),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // Construye el formulario para registrar la sesión actual
-  // Los campos se pre-llenan con los valores de la última
-  // sesión para que el usuario sepa desde dónde progresar
+  // ── FORMULARIO DE REGISTRO ────────────────────────────────
   Widget _buildFormRegistro() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x22000000), width: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x18000000), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Registrar nueva sesión',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary)),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                  child: _campoNumerico(
-                      _pesoCtrl, 'Peso (kg)', '80')),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: _campoNumerico(
-                      _seriesCtrl, 'Series', '4')),
-              const SizedBox(width: 10),
-              Expanded(
-                  child:
-                      _campoNumerico(_repsCtrl, 'Reps', '8')),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextFormField(
-            controller: _notaCtrl,
-            decoration: const InputDecoration(
-              hintText: 'Nota (opcional)',
+          // Header del formulario
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryLight,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(14),
+                topRight: Radius.circular(14),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.add_circle_outline,
+                    color: AppTheme.primary, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Registrar nueva sesión',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryDark,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              onPressed: _guardando ? null : _guardar,
-              child: _guardando
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : const Text('Guardar registro'),
+
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                        child: _campoNumerico(
+                            _pesoCtrl, 'Peso (kg)', '80', Icons.monitor_weight_outlined)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: _campoNumerico(
+                            _seriesCtrl, 'Series', '4', Icons.layers_outlined)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: _campoNumerico(
+                            _repsCtrl, 'Reps', '8', Icons.repeat)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _notaCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Nota opcional (ej: buena técnica)',
+                    prefixIcon: Icon(Icons.note_outlined,
+                        color: AppTheme.primaryIcon, size: 18),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: _guardando ? null : _guardar,
+                    icon: _guardando
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.save_outlined,
+                            size: 18, color: Colors.white),
+                    label: Text(
+                      _guardando ? 'Guardando...' : 'Guardar registro',
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -355,22 +413,22 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
     );
   }
 
-  // Construye un campo numérico del formulario de registro
-  // Acepta tanto teclado numérico con decimales
-  Widget _campoNumerico(
-      TextEditingController ctrl, String label, String hint) {
+  Widget _campoNumerico(TextEditingController ctrl, String label,
+      String hint, IconData icon) {
     return TextFormField(
       controller: ctrl,
       keyboardType:
           const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(labelText: label, hintText: hint),
+      textAlign: TextAlign.center,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 16, color: AppTheme.primaryIcon),
+      ),
     );
   }
 
-  // Construye la gráfica de línea con la evolución del peso
-  // a lo largo del tiempo usando la librería fl_chart
-  // Muestra visualmente la sobrecarga progresiva del usuario
-  // Solo se muestra cuando hay al menos 2 registros
+  // ── GRÁFICA ───────────────────────────────────────────────
   Widget _buildGrafica() {
     final spots = _registros
         .asMap()
@@ -379,21 +437,38 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
         .toList();
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x22000000), width: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x18000000), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Evolución del peso (kg)',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary)),
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.show_chart,
+                    size: 16, color: AppTheme.primary),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Evolución del peso (kg)',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           SizedBox(
             height: 160,
@@ -435,7 +510,16 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
                     show: true,
                     color: AppTheme.primaryLight.withOpacity(0.5),
                   ),
-                  dotData: const FlDotData(show: true),
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, bar, index) =>
+                        FlDotCirclePainter(
+                      radius: 4,
+                      color: AppTheme.primary,
+                      strokeWidth: 2,
+                      strokeColor: Colors.white,
+                    ),
+                  ),
                 ),
               ],
             )),
@@ -445,23 +529,44 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
     );
   }
 
-  // Construye el historial completo de sesiones del ejercicio
-  // ordenado de más reciente a más antiguo con:
-  // - Flecha verde si el peso subió respecto a la sesión anterior
-  // - Guión gris si el peso se mantuvo igual
-  // - Volumen total calculado (peso × series × reps)
-  // - Fecha en español y nota si existe
-  // - Botón de papelera para eliminar el registro
+  // ── HISTORIAL ─────────────────────────────────────────────
   Widget _buildHistorial() {
     if (_registros.isEmpty) {
-      return Padding(
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
         padding: const EdgeInsets.all(32),
-        child: Center(
-          child: Text(
-            'Aún no hay registros.\n¡Completa tu primera sesión!',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppTheme.textSecondary),
-          ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0x18000000), width: 0.5),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryLight,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.history,
+                  color: AppTheme.primary, size: 26),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Sin registros aún',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '¡Completa tu primera sesión!',
+              style:
+                  TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+          ],
         ),
       );
     }
@@ -469,89 +574,160 @@ class _EjercicioDetalleScreenState extends State<EjercicioDetalleScreen> {
     final invertidos = _registros.reversed.toList();
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x22000000), width: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x18000000), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Text('Historial de sesiones',
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary)),
+          // Header historial
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.history,
+                      size: 16, color: AppTheme.primary),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Historial de sesiones',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary),
+                ),
+                const Spacer(),
+                Text(
+                  '${_registros.length} total',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppTheme.textSecondary),
+                ),
+              ],
+            ),
           ),
+          const Divider(height: 1, color: Color(0x18000000)),
+
           ...invertidos.asMap().entries.map((entry) {
             final i = entry.key;
             final r = entry.value;
-            final prev = i < invertidos.length - 1
-                ? invertidos[i + 1]
-                : null;
+            final prev =
+                i < invertidos.length - 1 ? invertidos[i + 1] : null;
             final subio = prev != null && r.peso > prev.peso;
-            final vol =
-                (r.peso * r.series * r.reps).toStringAsFixed(0);
+            final bajo = prev != null && r.peso < prev.peso;
+            final vol = (r.peso * r.series * r.reps).toStringAsFixed(0);
+
+            final indicatorColor = subio
+                ? AppTheme.success
+                : bajo
+                    ? Colors.red
+                    : AppTheme.textSecondary;
+            final indicatorIcon = subio
+                ? Icons.arrow_upward
+                : bajo
+                    ? Icons.arrow_downward
+                    : Icons.remove;
 
             return Column(
               children: [
-                ListTile(
-                  dense: true,
-                  leading: Icon(
-                    subio ? Icons.arrow_upward : Icons.remove,
-                    size: 16,
-                    color: subio
-                        ? AppTheme.success
-                        : AppTheme.textSecondary,
-                  ),
-                  title: Row(
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  child: Row(
                     children: [
-                      Text(
-                        '${r.peso.toStringAsFixed(r.peso % 1 == 0 ? 0 : 1)} kg',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                            color: AppTheme.textPrimary),
+                      // Indicador
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: indicatorColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(indicatorIcon,
+                            size: 14, color: indicatorColor),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${r.series}×${r.reps}',
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13),
+                      const SizedBox(width: 12),
+
+                      // Datos principales
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  '${r.peso.toStringAsFixed(r.peso % 1 == 0 ? 0 : 1)} kg',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                      color: AppTheme.textPrimary),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryLight,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${r.series}×${r.reps}',
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.primary,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Vol: $vol kg  •  ${DateFormat('dd MMM yyyy', 'es').format(r.fecha)}',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textSecondary),
+                            ),
+                            if (r.nota != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  r.nota!,
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontStyle: FontStyle.italic,
+                                      color: AppTheme.textSecondary),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+
+                      // Botón eliminar
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            size: 18, color: AppTheme.textSecondary),
+                        onPressed: () async {
+                          await DatabaseHelper.instance
+                              .deleteRegistro(r.id!);
+                          _cargar();
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ],
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Vol: $vol kg  •  ${DateFormat('dd MMM yyyy', 'es').format(r.fecha)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      if (r.nota != null)
-                        Text(r.nota!,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                                color: AppTheme.textSecondary)),
-                    ],
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline,
-                        size: 18, color: AppTheme.textSecondary),
-                    onPressed: () async {
-                      await DatabaseHelper.instance
-                          .deleteRegistro(r.id!);
-                      _cargar();
-                    },
                   ),
                 ),
                 if (i < invertidos.length - 1)
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, color: Color(0x18000000)),
               ],
             );
           }),

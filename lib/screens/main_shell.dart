@@ -1,16 +1,15 @@
 // ============================================================
 // main_shell.dart - GymTracker
-// Contenedor principal de la aplicación después del Login.
-// Maneja la navegación entre las dos secciones principales:
-// - Inicio: resumen de los últimos entrenamientos del usuario
-// - Ejercicios: catálogo completo de ejercicios del gimnasio
-// Usa una barra de navegación inferior para cambiar entre
-// secciones manteniendo el estado de cada pantalla activa.
+// Contenedor principal con 4 pestañas de navegación inferior:
+// Inicio, Ejercicios, Estadísticas y Más (Perfil).
 // ============================================================
 
 import 'package:flutter/material.dart';
+import '../utils/app_theme.dart';
 import 'home_screen.dart';
 import 'ejercicios_screen.dart';
+import 'estadisticas_screen.dart';
+import 'perfil_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -25,46 +24,51 @@ class _MainShellState extends State<MainShell> {
   final _screens = const [
     HomeScreen(),
     EjerciciosScreen(),
+    EstadisticasScreen(),
+    PerfilScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-
-      // ── BARRA DE NAVEGACIÓN INFERIOR ─────────────────────
-      // Permite al usuario moverse entre Inicio y Ejercicios
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          border: Border(
-              top: BorderSide(color: Color(0x22000000), width: 0.5)),
+          border:
+              Border(top: BorderSide(color: Color(0x22000000), width: 0.5)),
         ),
         child: BottomNavigationBar(
           currentIndex: _index,
           onTap: (i) => setState(() => _index = i),
           backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF185FA5),
+          selectedItemColor: AppTheme.primary,
           unselectedItemColor: const Color(0xFF888780),
           elevation: 0,
+          type: BottomNavigationBarType.fixed,
+          selectedLabelStyle: const TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontSize: 11),
           items: const [
-
-            // ── PESTAÑA INICIO ────────────────────────────
-            // Muestra el resumen de los últimos entrenamientos
-            // con estadísticas y sesiones recientes del usuario
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
               label: 'Inicio',
             ),
-
-            // ── PESTAÑA EJERCICIOS ────────────────────────
-            // Muestra el catálogo completo de ejercicios
-            // con filtros por grupo muscular Push/Pull/Pierna
             BottomNavigationBarItem(
               icon: Icon(Icons.fitness_center_outlined),
               activeIcon: Icon(Icons.fitness_center),
               label: 'Ejercicios',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart_outlined),
+              activeIcon: Icon(Icons.bar_chart),
+              label: 'Estadísticas',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Perfil',
             ),
           ],
         ),

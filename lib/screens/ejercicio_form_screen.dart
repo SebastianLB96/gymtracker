@@ -1,12 +1,8 @@
 // ============================================================
 // ejercicio_form_screen.dart - GymTracker
-// Pantalla para crear o editar un ejercicio del catálogo.
-// Permite al usuario ingresar el nombre del ejercicio,
-// seleccionar el grupo muscular (Push/Pull/Pierna) y agregar
-// una foto de la máquina tomada directamente con la cámara
-// del celular o seleccionada desde la galería de fotos.
-// Esta funcionalidad es clave para que el usuario identifique
-// visualmente cada máquina de su gimnasio específico.
+// Formulario mejorado para crear o editar ejercicios.
+// Header con gradiente, sección de foto más visual y
+// selector de grupo muscular con colores por categoría.
 // ============================================================
 
 import 'dart:io';
@@ -16,7 +12,6 @@ import '../database/database_helper.dart';
 import '../models/ejercicio.dart';
 import '../utils/app_theme.dart';
 
-// Pantalla de formulario para crear o editar ejercicios
 class EjercicioFormScreen extends StatefulWidget {
   final Ejercicio? ejercicio;
 
@@ -34,8 +29,6 @@ class _EjercicioFormScreenState extends State<EjercicioFormScreen> {
   bool _guardando = false;
   final _grupos = ['Push', 'Pull', 'Pierna'];
 
-  // Si se está editando un ejercicio existente
-  // pre-llena los campos con sus datos actuales
   @override
   void initState() {
     super.initState();
@@ -52,90 +45,112 @@ class _EjercicioFormScreenState extends State<EjercicioFormScreen> {
     super.dispose();
   }
 
-  // Abre la cámara o galería para seleccionar la foto
-  // de la máquina del ejercicio en el gimnasio del usuario
   Future<void> _seleccionarImagen(ImageSource source) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
-
-        // Comprime la imagen al 80% para ahorrar espacio
-        // sin pérdida visual notable en la pantalla del celular
         source: source, imageQuality: 80, maxWidth: 800);
-
-    // Actualiza la foto mostrada si el usuario seleccionó una
     if (picked != null) setState(() => _imagenPath = picked.path);
   }
 
-  // Muestra el menú inferior con opciones para agregar
-  // la foto de la máquina del ejercicio en el gimnasio
   void _mostrarOpciones() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: AppTheme.border,
-                    borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: AppTheme.border,
+                      borderRadius: BorderRadius.circular(2))),
 
-            // ── OPCIÓN CÁMARA ─────────────────────────────
-            // Abre la cámara para fotografiar la máquina
-            // directamente en el gimnasio del usuario
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined,
-                  color: AppTheme.primary),
-              title: const Text('Tomar foto a la máquina'),
-              onTap: () {
-                Navigator.pop(context);
-                _seleccionarImagen(ImageSource.camera);
-              },
-            ),
+              const Text(
+                'Foto de la máquina',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary),
+              ),
+              const SizedBox(height: 16),
 
-            // ── OPCIÓN GALERÍA ────────────────────────────
-            // Permite seleccionar una foto ya tomada
-            // de la galería del celular del usuario
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined,
-                  color: AppTheme.primary),
-              title: const Text('Elegir de la galería'),
-              onTap: () {
-                Navigator.pop(context);
-                _seleccionarImagen(ImageSource.gallery);
-              },
-            ),
-
-            // ── OPCIÓN ELIMINAR FOTO ──────────────────────
-            // Solo visible si ya hay una foto asignada
-            // Permite quitar la foto de la máquina
-            if (_imagenPath != null)
-              ListTile(
-                leading:
-                    const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Eliminar foto',
-                    style: TextStyle(color: Colors.red)),
+              _opcionFoto(
+                icon: Icons.camera_alt_outlined,
+                label: 'Tomar foto a la máquina',
+                sublabel: 'Abre la cámara del celular',
                 onTap: () {
                   Navigator.pop(context);
-                  setState(() => _imagenPath = null);
+                  _seleccionarImagen(ImageSource.camera);
                 },
               ),
-            const SizedBox(height: 8),
-          ],
+              const Divider(height: 1, indent: 20, endIndent: 20),
+              _opcionFoto(
+                icon: Icons.photo_library_outlined,
+                label: 'Elegir de la galería',
+                sublabel: 'Selecciona una foto existente',
+                onTap: () {
+                  Navigator.pop(context);
+                  _seleccionarImagen(ImageSource.gallery);
+                },
+              ),
+
+              if (_imagenPath != null) ...[
+                const Divider(height: 1, indent: 20, endIndent: 20),
+                _opcionFoto(
+                  icon: Icons.delete_outline,
+                  label: 'Eliminar foto',
+                  sublabel: 'Volver al ícono predeterminado',
+                  color: Colors.red,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _imagenPath = null);
+                  },
+                ),
+              ],
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Guarda el ejercicio en la base de datos SQLite
-  // Si es nuevo lo inserta, si existe lo actualiza
-  // Regresa a la pantalla anterior al terminar
+  Widget _opcionFoto({
+    required IconData icon,
+    required String label,
+    required String sublabel,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final c = color ?? AppTheme.primary;
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: c.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: c, size: 20),
+      ),
+      title: Text(label,
+          style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: color ?? AppTheme.textPrimary)),
+      subtitle: Text(sublabel,
+          style:
+              const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+      onTap: onTap,
+    );
+  }
+
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
@@ -162,15 +177,35 @@ class _EjercicioFormScreenState extends State<EjercicioFormScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(esNuevo ? 'Nuevo ejercicio' : 'Editar ejercicio'),
+        backgroundColor: Colors.white,
+        title: Text(
+          esNuevo ? 'Nuevo ejercicio' : 'Editar ejercicio',
+          style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary),
+        ),
         actions: [
-          TextButton(
-            onPressed: _guardando ? null : _guardar,
-            child: Text(
-              'Guardar',
-              style: TextStyle(
-                color: _guardando ? AppTheme.textHint : AppTheme.primary,
-                fontWeight: FontWeight.w500,
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton(
+              onPressed: _guardando ? null : _guardar,
+              style: TextButton.styleFrom(
+                backgroundColor:
+                    _guardando ? AppTheme.border : AppTheme.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                minimumSize: Size.zero,
+              ),
+              child: Text(
+                'Guardar',
+                style: TextStyle(
+                  color: _guardando ? AppTheme.textHint : Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
@@ -181,81 +216,107 @@ class _EjercicioFormScreenState extends State<EjercicioFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // Foto de la máquina
+            // ── FOTO DE LA MÁQUINA ────────────────────────
             Center(
               child: GestureDetector(
                 onTap: _mostrarOpciones,
-                child: Stack(
+                child: Column(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: _imagenPath != null
-                          ? Image.file(File(_imagenPath!),
-                              width: 160,
-                              height: 160,
-                              fit: BoxFit.cover)
-                          : Container(
-                              width: 160,
-                              height: 160,
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryLight,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: AppTheme.primaryBorder,
-                                    style: BorderStyle.solid),
+                    Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primary.withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
                               ),
-                              child: Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_a_photo_outlined,
-                                      size: 40,
-                                      color: AppTheme.primaryIcon),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'Foto de la máquina',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.primaryIcon),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: _imagenPath != null
+                                ? Image.file(File(_imagenPath!),
+                                    width: 150,
+                                    height: 150,
+                                    fit: BoxFit.cover)
+                                : Container(
+                                    width: 150,
+                                    height: 150,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          AppTheme.primaryLight,
+                                          Color(0xFFD6E8FA),
+                                        ],
+                                      ),
+                                      borderRadius:
+                                          BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: AppTheme.primaryBorder,
+                                          width: 1.5),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.add_a_photo_outlined,
+                                            size: 44,
+                                            color: AppTheme.primaryIcon),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Foto de la\nmáquina',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppTheme.primaryIcon,
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ],
-                              ),
-                            ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primary,
-                          shape: BoxShape.circle,
+                          ),
                         ),
-                        child: const Icon(Icons.camera_alt,
-                            size: 16, color: Colors.white),
-                      ),
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: const BoxDecoration(
+                              color: AppTheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt,
+                                size: 16, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _imagenPath != null
+                          ? 'Toca para cambiar la foto'
+                          : 'Toca para agregar foto',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 6),
-            const Center(
-              child: Text(
-                'Toca para agregar o cambiar foto',
-                style: TextStyle(
-                    fontSize: 12, color: AppTheme.textSecondary),
-              ),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // Nombre
+            // ── NOMBRE ────────────────────────────────────
             const Text(
               'Nombre del ejercicio',
               style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
@@ -264,52 +325,77 @@ class _EjercicioFormScreenState extends State<EjercicioFormScreen> {
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 hintText: 'Ej. Press de Pecho en Máquina',
+                prefixIcon: Icon(Icons.fitness_center_outlined,
+                    color: AppTheme.primaryIcon, size: 20),
               ),
               validator: (v) => (v == null || v.trim().isEmpty)
                   ? 'Campo requerido'
                   : null,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // Grupo muscular
+            // ── GRUPO MUSCULAR ────────────────────────────
             const Text(
               'Grupo muscular',
               style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 10),
             Row(
               children: _grupos.map((g) {
                 final sel = g == _grupo;
+                final color = AppTheme.grupoColor(g);
+                final bgColor = AppTheme.grupoBgColor(g);
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: GestureDetector(
                       onTap: () => setState(() => _grupo = g),
-                      child: Container(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(
-                          color: sel ? AppTheme.primary : Colors.white,
-                          borderRadius: BorderRadius.circular(10),
+                          color: sel ? color : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: sel
-                                ? AppTheme.primary
-                                : AppTheme.border,
+                            color: sel ? color : AppTheme.border,
+                            width: sel ? 0 : 0.5,
                           ),
+                          boxShadow: sel
+                              ? [
+                                  BoxShadow(
+                                    color: color.withOpacity(0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  )
+                                ]
+                              : [],
                         ),
-                        child: Text(
-                          g,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: sel
-                                ? Colors.white
-                                : AppTheme.textSecondary,
-                          ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              g == 'Push'
+                                  ? Icons.arrow_upward
+                                  : g == 'Pull'
+                                      ? Icons.arrow_downward
+                                      : Icons.directions_walk,
+                              size: 18,
+                              color: sel ? Colors.white : color,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              g,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    sel ? Colors.white : AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -319,21 +405,34 @@ class _EjercicioFormScreenState extends State<EjercicioFormScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Botón guardar
+            // ── BOTÓN GUARDAR ─────────────────────────────
             SizedBox(
               width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
+              height: 50,
+              child: ElevatedButton.icon(
                 onPressed: _guardando ? null : _guardar,
-                child: _guardando
+                icon: _guardando
                     ? const SizedBox(
-                        height: 20,
-                        width: 20,
+                        height: 18,
+                        width: 18,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
-                    : Text(esNuevo
-                        ? 'Crear ejercicio'
-                        : 'Guardar cambios'),
+                    : Icon(
+                        esNuevo ? Icons.add_circle_outline : Icons.save_outlined,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                label: Text(
+                  esNuevo ? 'Crear ejercicio' : 'Guardar cambios',
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
               ),
             ),
           ],
